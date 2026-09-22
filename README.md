@@ -29,27 +29,7 @@ The project is currently in the **frontend development stage**. The interface is
 
 ---
 
-## 🎨 Design
 
-Manzil follows a warm café-inspired visual identity.
-
-| Color | Hex |
-|---|---|
-| Espresso | `#3B2118` |
-| Coffee Brown | `#5A3022` |
-| Caramel | `#A86445` |
-| Terracotta | `#B96F52` |
-| Cream | `#F7EFE6` |
-| Soft Beige | `#EDE0D4` |
-| Olive | `#69705A` |
-| Soft White | `#FFFDF9` |
-
-### Typography
-
-- **Playfair Display** — headings and brand styling
-- **Inter** — body text and UI
-
----
 
 ## 🛠️ Tech Stack
 
