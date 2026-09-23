@@ -29,6 +29,7 @@ The project is currently in the **frontend development stage**. The interface is
 
 ---
 
+<<<<<<< HEAD
 ## 🎨 Design
 
 Manzil follows a warm café-inspired visual identity.
@@ -50,6 +51,9 @@ Manzil follows a warm café-inspired visual identity.
 - **Inter** — body text and UI
 
 ---
+=======
+
+>>>>>>> b2bdb0e1c97ef1a90cf43e8ac937541d1c1c0d40
 
 ## 🛠️ Tech Stack
 
