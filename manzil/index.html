@@ -9,7 +9,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -23,13 +23,17 @@
         </div>
 
         <nav>
-            <a href="#">Home</a>
-            <a href="#">Explore</a>
-            <a href="#">Saved</a>
-            <a href="#">Profile</a>
+            <a href="#top">Home</a>
+            <a href="#mood-section">Explore</a>
+            <a href="#cafes-section">Saved</a>
+            <a href="#footer">Profile</a>
         </nav>
 
-        <button class="login-btn">
+        <button class="mobile-nav-toggle" aria-label="Open navigation" aria-expanded="false">
+            ☰
+        </button>
+
+        <button class="login-btn" type="button">
             Login
         </button>
 
@@ -39,10 +43,10 @@
     <!-- HERO SECTION -->
     <main>
 
-        <section class="hero">
+        <section class="hero" id="top">
 
             <p class="welcome">
-                ☕ Welcome to Manzil
+                WELCOME TO MANZIL
             </p>
 
             <h1>
@@ -66,15 +70,16 @@
                 <input
                     id="searchInput"
                     type="text"
+                    aria-label="Describe the café you are looking for"
                     placeholder="Try 'quiet café for studying with Wi-Fi...'"
                 >
 
-                <button id="aiSearchBtn">
+                <button id="aiSearchBtn" type="button" aria-label="Search for cafés">
                     ✨
                 </button>
 
             </div>
-          <div id="searchResult" class="search-result"></div>
+          <div id="searchResult" class="search-result" role="status" aria-live="polite"></div>
             <p class="search-hint">
                 ✦ Manzil understands what you need
             </p>
@@ -112,7 +117,7 @@
 
 </div>
         </section>
-        <section class="vibe-section">
+        <section class="vibe-section" id="mood-section">
 
     <div class="section-heading">
         <div>
@@ -120,7 +125,7 @@
             <h2>Explore by mood</h2>
         </div>
 
-        <a href="#">See all →</a>
+        <a href="#cafes-section">See all →</a>
     </div>
 
 
@@ -168,7 +173,7 @@
     </div>
 
 </section>
-<section class="cafes-section">
+<section class="cafes-section" id="cafes-section">
 
     <div class="section-heading">
 
@@ -177,127 +182,12 @@
             <h2>Cafés near you</h2>
         </div>
 
-        <a href="#">See all →</a>
+        <a href="#cafes-section">See all →</a>
 
     </div>
 
 
-    <div class="cafe-grid">
-
-        <!-- CAFE 1 -->
-
-        <article class="cafe-card">
-
-            <div class="cafe-image">
-
-                <img src="images/quiet.jpg"
-                     alt="Cozy outdoor cafe">
-
-                <span class="match-badge">
-                    ✦ 92% Match
-                </span>
-
-                <button class="save-btn">
-                    ♡
-                </button>
-
-            </div>
-
-
-            <div class="cafe-info">
-
-                <div class="cafe-title">
-
-                    <h3>The Reading Room</h3>
-
-                    <span>⭐ 4.7</span>
-
-                </div>
-
-                <p class="cafe-location">
-                    📍 1.4 km away
-                </p>
-
-
-                <div class="cafe-tags">
-
-                    <span>Wi-Fi</span>
-                    <span>Quiet</span>
-                    <span>Charging</span>
-
-                </div>
-
-
-                <div class="cafe-bottom">
-
-                    <strong>₹300 – ₹500</strong>
-
-                    <p>Great for studying</p>
-
-                </div>
-
-            </div>
-
-        </article>
-
-
-        <!-- CAFE 2 -->
-
-        <article class="cafe-card">
-
-            <div class="cafe-image">
-
-                <img src="images/cozy.jpg"
-                     alt="Cozy cafe">
-
-                <span class="match-badge">
-                    ✦ 88% Match
-                </span>
-
-                <button class="save-btn">
-                    ♡
-                </button>
-
-            </div>
-
-
-            <div class="cafe-info">
-
-                <div class="cafe-title">
-
-                    <h3>Beans & Brews</h3>
-
-                    <span>⭐ 4.5</span>
-
-                </div>
-
-                <p class="cafe-location">
-                    📍 2.1 km away
-                </p>
-
-
-                <div class="cafe-tags">
-
-                    <span>Outdoor</span>
-                    <span>Pet Friendly</span>
-                    <span>AC</span>
-
-                </div>
-
-
-                <div class="cafe-bottom">
-
-                    <strong>₹400 – ₹600</strong>
-
-                    <p>Perfect for meetups</p>
-
-                </div>
-
-            </div>
-
-        </article>
-
-    </div>
+    <div class="cafe-grid" aria-live="polite"></div>
 
 </section>
 <section class="map-section" id="map-section">
@@ -313,7 +203,7 @@
             mood and what you need.
         </p>
 
-        <button class="map-btn">
+        <button class="map-btn" type="button">
             Explore Map →
         </button>
 
@@ -335,7 +225,7 @@
 
 </section>
 </main>
-<footer class="footer">
+<footer class="footer" id="footer">
 
     <div class="footer-brand">
         <h2>Manzil<span>📍</span></h2>
@@ -382,7 +272,7 @@
 <div class="footer-bottom">
     <p>© 2026 Manzil — The CafeFinder</p>
 </div>
-<script src="script.js"></script>
+<script src="script.js?v=part1"></script>
 </body>
 
 </html>
