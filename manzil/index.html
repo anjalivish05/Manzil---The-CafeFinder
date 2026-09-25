@@ -7,9 +7,11 @@
 
     <title>Manzil | The CafeFinder</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
     <!-- NAVBAR -->
@@ -62,41 +64,53 @@
                 </div>
 
                 <input
+                    id="searchInput"
                     type="text"
                     placeholder="Try 'quiet café for studying with Wi-Fi...'"
                 >
 
-                <button>
+                <button id="aiSearchBtn">
                     ✨
                 </button>
 
             </div>
-
+          <div id="searchResult" class="search-result"></div>
             <p class="search-hint">
                 ✦ Manzil understands what you need
             </p>
 
 
             <!-- QUICK PICKS -->
-            <div class="quick-picks">
 
-                <p>Try Manzil</p>
+<div class="quick-picks">
 
-                <div class="chips">
+    <p>Try Manzil</p>
 
-                    <button>📚 Study</button>
+    <div class="chips">
 
-                    <button>💻 Work</button>
+        <button class="quick-card" data-purpose="study">
+            <span>📖</span>
+            Study
+        </button>
 
-                    <button>❤️ Date</button>
+        <button class="quick-card" data-purpose="work">
+            <span>💻</span>
+            Work
+        </button>
 
-                    <button>👥 Friends</button>
+        <button class="quick-card" data-purpose="date">
+            <span>❤️</span>
+            Date
+        </button>
 
-                </div>
+        <button class="quick-card" data-purpose="friends">
+            <span>👥</span>
+            Friends
+        </button>
 
+    </div>
 
-            </div>
-
+</div>
         </section>
         <section class="vibe-section">
 
@@ -286,7 +300,7 @@
     </div>
 
 </section>
-<section class="map-section">
+<section class="map-section" id="map-section">
 
     <div class="map-text">
 
@@ -319,8 +333,8 @@
 
     </div>
 
-    </main>
-    </section>
+</section>
+</main>
 <footer class="footer">
 
     <div class="footer-brand">
@@ -368,7 +382,7 @@
 <div class="footer-bottom">
     <p>© 2026 Manzil — The CafeFinder</p>
 </div>
-
+<script src="script.js"></script>
 </body>
 
 </html>
