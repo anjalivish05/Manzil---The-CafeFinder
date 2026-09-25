@@ -24,104 +24,58 @@ const moodQueries = {
 };
 
 // Local sample data keeps Part 1 independent from any backend or API.
-const cafes = [
-    {
-        name: "Brew & Pages",
-        type: "Reading cafe",
-        price: 400,
-        rating: 4.8,
-        distance: "1.1 km away",
-        purpose: "study",
-        quiet: true,
-        wifi: true,
-        charging: true,
-        outdoor: false,
-        petFriendly: false,
-        ac: true,
-        image: "images/quiet.jpg",
-        description: "A calm corner for long reading sessions."
-    },
-    {
-        name: "The Cozy Bean",
-        type: "Neighbourhood cafe",
-        price: 600,
-        rating: 4.6,
-        distance: "2.1 km away",
-        purpose: "friends",
-        quiet: false,
-        wifi: true,
-        charging: false,
-        outdoor: true,
-        petFriendly: true,
-        ac: true,
-        image: "images/cozy.jpg",
-        description: "Warm tables and easy conversation over coffee."
-    },
-    {
-        name: "The Reading Corner",
-        type: "Library cafe",
-        price: 450,
-        rating: 4.7,
-        distance: "1.4 km away",
-        purpose: "study",
-        quiet: true,
-        wifi: true,
-        charging: true,
-        outdoor: false,
-        petFriendly: false,
-        ac: false,
-        image: "images/quiet.jpg",
-        description: "Peaceful seating with reliable Wi-Fi and charging."
-    },
-    {
-        name: "Urban Coffee",
-        type: "Work cafe",
-        price: 350,
-        rating: 4.4,
-        distance: "1.8 km away",
-        purpose: "work",
-        quiet: false,
-        wifi: true,
-        charging: true,
-        outdoor: false,
-        petFriendly: false,
-        ac: true,
-        image: "images/work.jpg",
-        description: "A bright, focused spot for productive afternoons."
-    },
-    {
-        name: "Terracotta Table",
-        type: "Garden cafe",
-        price: 500,
-        rating: 4.5,
-        distance: "2.7 km away",
-        purpose: "date",
-        quiet: true,
-        wifi: false,
-        charging: false,
-        outdoor: true,
-        petFriendly: true,
-        ac: false,
-        image: "images/outdoor.jpg",
-        description: "Leafy outdoor tables made for slow afternoons together."
-    },
-    {
-        name: "The Workroom",
-        type: "Creative workspace",
-        price: 550,
-        rating: 4.3,
-        distance: "3.2 km away",
-        purpose: "work",
-        quiet: true,
-        wifi: true,
-        charging: true,
-        outdoor: true,
-        petFriendly: false,
-        ac: true,
-        image: "images/work.jpg",
-        description: "Flexible tables, strong coffee and room to focus."
+let cafes = [];
+
+async function loadCafes() {
+    try {
+        const response = await fetch("http://127.0.0.1:8001/cafes");
+
+        if (!response.ok) {
+            throw new Error("Failed to load cafes");
+        }
+
+        const dbCafes = await response.json();
+
+        cafes = dbCafes.map(function(cafe) {
+            return {
+                ...cafe,
+
+                type: cafe.purpose === "study"
+                    ? "Reading cafe"
+                    : cafe.purpose === "work"
+                    ? "Work cafe"
+                    : "Neighborhood cafe",
+
+                distance: "1.4 km away",
+
+                outdoor: false,
+                petFriendly: false,
+                ac: true,
+
+                image:
+                    cafe.purpose === "study"
+                        ? "images/quiet.jpg"
+                        : cafe.purpose === "friends"
+                        ? "images/cozy.jpg"
+                        : "images/work.jpg",
+
+                description:
+                    cafe.purpose === "study"
+                        ? "A calm space for studying and reading."
+                        : cafe.purpose === "work"
+                        ? "A productive space for focused work."
+                        : "A comfortable place to meet and relax."
+            };
+        });
+
+        console.log("Cafes loaded from database:", cafes);
+
+    } catch (error) {
+        console.error("Error loading cafes:", error);
     }
-];
+}
+
+loadCafes();
 
 quickPicks.forEach(function(button) {
     button.addEventListener("click", function() {
@@ -264,14 +218,63 @@ function calculateMatchScore(cafe, preferences) {
 function findMatchingCafes(preferences) {
     return cafes
         .filter(function(cafe) {
-            return preferences.budget === null || cafe.price <= preferences.budget;
+
+            // Check purpose
+            if (
+                preferences.purpose &&
+                cafe.purpose !== preferences.purpose
+            ) {
+                return false;
+            }
+
+            // Check requested features
+            const featureKeys = [
+                "quiet",
+                "wifi",
+                "charging",
+                "outdoor",
+                "petFriendly",
+                "ac"
+            ];
+
+            for (const key of featureKeys) {
+                if (preferences[key] && !cafe[key]) {
+                    return false;
+                }
+            }
+
+            // Check cozy requirement
+            if (
+                preferences.cozy &&
+                !(cafe.purpose === "date" || cafe.outdoor || cafe.quiet)
+            ) {
+                return false;
+            }
+
+            // Check budget
+            if (
+                preferences.budget !== null &&
+                cafe.price > preferences.budget
+            ) {
+                return false;
+            }
+
+            return true;
         })
         .map(function(cafe) {
             const match = calculateMatchScore(cafe, preferences);
-            return { ...cafe, matchScore: match.score, matchedFeatures: match.matchedFeatures };
+
+            return {
+                ...cafe,
+                matchScore: match.score,
+                matchedFeatures: match.matchedFeatures
+            };
         })
         .sort(function(firstCafe, secondCafe) {
-            return secondCafe.matchScore - firstCafe.matchScore || firstCafe.distance.localeCompare(secondCafe.distance);
+            return (
+                secondCafe.matchScore - firstCafe.matchScore ||
+                firstCafe.distance.localeCompare(secondCafe.distance)
+            );
         });
 }
 
