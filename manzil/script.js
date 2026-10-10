@@ -7,7 +7,19 @@ const cafeGrid = document.querySelector(".cafe-grid");
 const mapButton = document.querySelector(".map-btn");
 const mobileNavToggle = document.querySelector(".mobile-nav-toggle");
 const navigation = document.querySelector("nav");
+const loginButton = document.querySelector(".login-btn");
+const authModal = document.querySelector(".auth-modal");
+const authCloseButton = document.querySelector(".auth-close");
+const authTabs = document.querySelectorAll(".auth-tab");
+const authForm = document.querySelector(".auth-form");
+const authMessage = document.querySelector(".auth-message");
+const authTitle = document.getElementById("authTitle");
+const authSubmit = document.querySelector(".auth-submit");
+const signupFields = document.querySelectorAll(".signup-only");
 const savedCafeKey = "manzil-saved-cafes";
+const authStorageKey = "manzil-auth";
+const apiBaseUrl = "http://127.0.0.1:8001";
+let authMode = "login";
 
 const quickQueries = {
     study: "Find a quiet cafe for studying with Wi-Fi",
@@ -76,6 +88,105 @@ async function loadCafes() {
 }
 
 loadCafes();
+
+function setAuthMode(mode) {
+    authMode = mode;
+    const isSignup = mode === "signup";
+    authTitle.textContent = isSignup ? "Create your account" : "Welcome back";
+    authSubmit.textContent = isSignup ? "Create account" : "Login";
+    signupFields.forEach(function(field) {
+        field.hidden = !isSignup;
+        field.querySelector("input").required = isSignup;
+    });
+    authTabs.forEach(function(tab) {
+        tab.classList.toggle("is-active", tab.dataset.authMode === mode);
+    });
+    authMessage.textContent = "";
+}
+
+function openAuthModal(mode) {
+    setAuthMode(mode || "login");
+    authModal.classList.add("is-open");
+    authModal.setAttribute("aria-hidden", "false");
+    authForm.querySelector("input[name='email']").focus();
+}
+
+function closeAuthModal() {
+    authModal.classList.remove("is-open");
+    authModal.setAttribute("aria-hidden", "true");
+    authForm.reset();
+    setAuthMode("login");
+}
+
+function updateLoginButton() {
+    const auth = JSON.parse(localStorage.getItem(authStorageKey) || "null");
+    loginButton.textContent = auth ? "Log out" : "Login";
+}
+
+if (loginButton) {
+    loginButton.addEventListener("click", function() {
+        if (localStorage.getItem(authStorageKey)) {
+            localStorage.removeItem(authStorageKey);
+            updateLoginButton();
+            return;
+        }
+        openAuthModal("login");
+    });
+}
+
+authTabs.forEach(function(tab) {
+    tab.addEventListener("click", function() {
+        setAuthMode(tab.dataset.authMode);
+    });
+});
+
+authCloseButton.addEventListener("click", closeAuthModal);
+authModal.addEventListener("click", function(event) {
+    if (event.target === authModal) {
+        closeAuthModal();
+    }
+});
+
+authForm.addEventListener("submit", async function(event) {
+    event.preventDefault();
+    const formData = new FormData(authForm);
+    const payload = {
+        email: formData.get("email"),
+        password: formData.get("password")
+    };
+
+    if (authMode === "signup") {
+        payload.name = formData.get("name");
+    }
+
+    authSubmit.disabled = true;
+    authMessage.textContent = "Please wait...";
+
+    try {
+        const response = await fetch(apiBaseUrl + "/auth/" + authMode, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.detail || "Authentication failed.");
+        }
+
+        localStorage.setItem(authStorageKey, JSON.stringify({
+            token: result.access_token,
+            user: result.user
+        }));
+        updateLoginButton();
+        closeAuthModal();
+    } catch (error) {
+        authMessage.textContent = error.message;
+    } finally {
+        authSubmit.disabled = false;
+    }
+});
+
+updateLoginButton();
 
 quickPicks.forEach(function(button) {
     button.addEventListener("click", function() {

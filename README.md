@@ -8,7 +8,7 @@ For example:
 
 > “Find me a quiet café for studying with Wi-Fi, charging points, and a budget under ₹500.”
 
-The project is currently in the **frontend development stage**. The interface is being built first, followed by JavaScript, backend APIs, database integration, AI/NLP, recommendations, and maps.
+The project includes the frontend foundation and a FastAPI/MySQL backend for authentication, café discovery, natural-language preference extraction, recommendations, saved cafés, search history, and user preferences.
 
 ---
 
@@ -25,7 +25,7 @@ The project is currently in the **frontend development stage**. The interface is
 - 📱 Responsive design
 - 🎨 Warm, premium café-inspired UI
 
-> **Note:** AI search, real recommendations, database functionality, and live maps are planned features and are not fully implemented yet.
+> **Note:** Live map rendering and distance calculation still require a location/maps provider. The API's recommendation and persistence features require the MySQL database configured in `backend/.env`.
 
 ---
 
@@ -181,27 +181,27 @@ Open `index.html` in a browser, or use **VS Code + Live Server** for development
 - [ ] Dynamic café cards
 
 ### Phase 3 — Backend
-- [ ] FastAPI setup
-- [ ] REST API
-- [ ] Café endpoints
-- [ ] Search endpoint
-- [ ] Database connection
+- [x] FastAPI setup
+- [x] REST API
+- [x] Café endpoints
+- [x] Search endpoint
+- [x] Database connection
 
 ### Phase 4 — Database
-- [ ] MySQL
+- [x] MySQL
 - [ ] Café data
-- [ ] Amenities
+- [x] Amenities
 - [ ] Ratings
 - [ ] Pricing
 - [ ] Location data
-- [ ] User data
+- [x] User data
 
 ### Phase 5 — AI
-- [ ] Natural-language search
-- [ ] Requirement extraction
-- [ ] Preference matching
-- [ ] Recommendation logic
-- [ ] Explainable recommendations
+- [x] Natural-language search
+- [x] Requirement extraction
+- [x] Preference matching
+- [x] Recommendation logic
+- [x] Explainable recommendations
 
 ### Phase 6 — Maps & Location
 - [ ] User location
@@ -211,12 +211,24 @@ Open `index.html` in a browser, or use **VS Code + Live Server** for development
 - [ ] Map markers
 
 ### Phase 7 — Product
-- [ ] Authentication
+- [x] Authentication
 - [ ] User profiles
-- [ ] Favorites
-- [ ] Search history
-- [ ] Personalization
+- [x] Favorites
+- [x] Search history
+- [x] Personalization
 - [ ] Deployment
+
+### Backend API
+
+Run the API from the repository root with `.\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload --port 8001`, or from the `backend` directory with `..\.venv\Scripts\python.exe -m uvicorn main:app --reload --port 8001`.
+
+- `GET /cafes` — list cafés; supports `purpose` and `max_price` filters.
+- `POST /nlp/parse` — convert a natural-language request into structured preferences.
+- `POST /search/recommendations` — return ranked cafés and explanations. Anonymous searches work; authenticated searches are saved to history.
+- `POST /auth/signup` and `POST /auth/login` — create an account or receive a bearer token.
+- `GET/POST/DELETE /saved/{cafe_id}` — manage saved cafés (authentication required).
+- `GET /history` — retrieve the authenticated user's recent searches.
+- `GET/PUT /preferences` — retrieve or update the authenticated user's preferences.
 
 ---
 
