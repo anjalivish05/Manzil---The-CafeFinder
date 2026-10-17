@@ -16,10 +16,10 @@ const authMessage = document.querySelector(".auth-message");
 const authTitle = document.getElementById("authTitle");
 const authSubmit = document.querySelector(".auth-submit");
 const signupFields = document.querySelectorAll(".signup-only");
-const savedCafeKey = "manzil-saved-cafes";
 const authStorageKey = "manzil-auth";
-const apiBaseUrl = "http://127.0.0.1:8001";
+const apiBaseUrl = window.MANZIL_API_BASE_URL || "http://127.0.0.1:8001";
 let authMode = "login";
+let savedCafeIds = new Set();
 
 const quickQueries = {
     study: "Find a quiet cafe for studying with Wi-Fi",
@@ -35,12 +35,34 @@ const moodQueries = {
     outdoor: "Find an outdoor cafe"
 };
 
-// Local sample data keeps Part 1 independent from any backend or API.
 let cafes = [];
+
+function enrichCafe(cafe) {
+    return {
+        ...cafe,
+        type: cafe.type || (cafe.purpose === "study"
+            ? "Reading cafe"
+            : cafe.purpose === "work"
+            ? "Work cafe"
+            : "Neighborhood cafe"),
+        distance: cafe.distance || "Distance unavailable",
+        petFriendly: Boolean(cafe.petFriendly ?? cafe.pet_friendly),
+        image: cafe.image || (cafe.purpose === "study"
+            ? "images/quiet.jpg"
+            : cafe.purpose === "friends"
+            ? "images/cozy.jpg"
+            : "images/work.jpg"),
+        description: cafe.description || (cafe.purpose === "study"
+            ? "A calm space for studying and reading."
+            : cafe.purpose === "work"
+            ? "A productive space for focused work."
+            : "A comfortable place to meet and relax.")
+    };
+}
 
 async function loadCafes() {
     try {
-        const response = await fetch("http://127.0.0.1:8001/cafes");
+        const response = await fetch(apiBaseUrl + "/cafes");
 
         if (!response.ok) {
             throw new Error("Failed to load cafes");
@@ -48,46 +70,63 @@ async function loadCafes() {
 
         const dbCafes = await response.json();
 
-        cafes = dbCafes.map(function(cafe) {
-            return {
-                ...cafe,
+        cafes = dbCafes.map(enrichCafe);
 
-                type: cafe.purpose === "study"
-                    ? "Reading cafe"
-                    : cafe.purpose === "work"
-                    ? "Work cafe"
-                    : "Neighborhood cafe",
-
-                distance: "1.4 km away",
-
-                outdoor: false,
-                petFriendly: false,
-                ac: true,
-
-                image:
-                    cafe.purpose === "study"
-                        ? "images/quiet.jpg"
-                        : cafe.purpose === "friends"
-                        ? "images/cozy.jpg"
-                        : "images/work.jpg",
-
-                description:
-                    cafe.purpose === "study"
-                        ? "A calm space for studying and reading."
-                        : cafe.purpose === "work"
-                        ? "A productive space for focused work."
-                        : "A comfortable place to meet and relax."
-            };
-        });
-
-        console.log("Cafes loaded from database:", cafes);
-
+        displayCafes(cafes.map(function(cafe) {
+            return { ...cafe, matchScore: 50, matchedFeatures: [] };
+        }));
     } catch (error) {
-        console.error("Error loading cafes:", error);
+        searchResult.textContent = "☕ We couldn't connect to Manzil right now. Please try again.";
     }
 }
 
 loadCafes();
+
+function getAuth() {
+    try {
+        return JSON.parse(localStorage.getItem(authStorageKey) || "null");
+    } catch (error) {
+        return null;
+    }
+}
+
+function authHeaders() {
+    const auth = getAuth();
+    return auth && auth.token
+        ? { Authorization: "Bearer " + auth.token }
+        : {};
+}
+
+async function readApiResponse(response) {
+    const result = await response.json().catch(function() {
+        return {};
+    });
+    if (!response.ok) {
+        throw new Error(result.detail || "Something went wrong. Please try again.");
+    }
+    return result;
+}
+
+async function loadSavedCafes() {
+    if (!getAuth()) {
+        savedCafeIds = new Set();
+        return;
+    }
+    try {
+        const response = await fetch(apiBaseUrl + "/saved-cafes", {
+            headers: authHeaders()
+        });
+        const result = await readApiResponse(response);
+        savedCafeIds = new Set(result.saved_cafes.map(function(cafe) {
+            return cafe.id;
+        }));
+    } catch (error) {
+        if (error.message.includes("token") || error.message.includes("bearer")) {
+            localStorage.removeItem(authStorageKey);
+            updateLoginButton();
+        }
+    }
+}
 
 function setAuthMode(mode) {
     authMode = mode;
@@ -119,7 +158,7 @@ function closeAuthModal() {
 }
 
 function updateLoginButton() {
-    const auth = JSON.parse(localStorage.getItem(authStorageKey) || "null");
+    const auth = getAuth();
     loginButton.textContent = auth ? "Log out" : "Login";
 }
 
@@ -127,7 +166,11 @@ if (loginButton) {
     loginButton.addEventListener("click", function() {
         if (localStorage.getItem(authStorageKey)) {
             localStorage.removeItem(authStorageKey);
+            savedCafeIds = new Set();
             updateLoginButton();
+            displayCafes(cafes.map(function(cafe) {
+                return { ...cafe, matchScore: 50, matchedFeatures: [] };
+            }));
             return;
         }
         openAuthModal("login");
@@ -168,16 +211,14 @@ authForm.addEventListener("submit", async function(event) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.detail || "Authentication failed.");
-        }
+        const result = await readApiResponse(response);
 
         localStorage.setItem(authStorageKey, JSON.stringify({
             token: result.access_token,
             user: result.user
         }));
         updateLoginButton();
+        await loadSavedCafes();
         closeAuthModal();
     } catch (error) {
         authMessage.textContent = error.message;
@@ -400,26 +441,41 @@ function generateRecommendationReason(cafe, preferences) {
     return "Great match" + purposeText + " — " + features.slice(0, 3).join(", ") + ".";
 }
 
-function getSavedCafes() {
+async function toggleSavedCafe(cafeId, button) {
+    if (!getAuth()) {
+        openAuthModal("login");
+        return;
+    }
+
+    const isSaved = savedCafeIds.has(cafeId);
+    button.disabled = true;
     try {
-        return JSON.parse(localStorage.getItem(savedCafeKey)) || [];
+        const response = await fetch(
+            isSaved
+                ? apiBaseUrl + "/saved-cafes/" + cafeId
+                : apiBaseUrl + "/saved-cafes?cafe_id=" + encodeURIComponent(cafeId),
+            {
+                method: isSaved ? "DELETE" : "POST",
+                headers: authHeaders()
+            }
+        );
+        await readApiResponse(response);
+        if (isSaved) {
+            savedCafeIds.delete(cafeId);
+        } else {
+            savedCafeIds.add(cafeId);
+        }
+        updateSaveButton(button, !isSaved);
     } catch (error) {
-        return [];
+        if (error.message.includes("token") || error.message.includes("bearer")) {
+            localStorage.removeItem(authStorageKey);
+            savedCafeIds = new Set();
+            updateLoginButton();
+        }
+        searchResult.textContent = "☕ " + error.message;
+    } finally {
+        button.disabled = false;
     }
-}
-
-function toggleSavedCafe(cafeName, button) {
-    const savedCafes = getSavedCafes();
-    const cafeIndex = savedCafes.indexOf(cafeName);
-
-    if (cafeIndex === -1) {
-        savedCafes.push(cafeName);
-    } else {
-        savedCafes.splice(cafeIndex, 1);
-    }
-
-    localStorage.setItem(savedCafeKey, JSON.stringify(savedCafes));
-    updateSaveButton(button, savedCafes.includes(cafeName));
 }
 
 function updateSaveButton(button, isSaved) {
@@ -439,9 +495,8 @@ function displayCafes(cafeMatches) {
         return;
     }
 
-    const savedCafes = getSavedCafes();
     cafeGrid.innerHTML = cafeMatches.map(function(cafe) {
-        const isSaved = savedCafes.includes(cafe.name);
+        const isSaved = savedCafeIds.has(cafe.id);
         const tags = [
             cafe.wifi ? "Wi-Fi" : "",
             cafe.quiet ? "Quiet" : "",
@@ -456,7 +511,7 @@ function displayCafes(cafeMatches) {
                 <div class="cafe-image">
                     <img src="${cafe.image}" alt="${cafe.name}, ${cafe.type}">
                     <span class="match-badge">✦ ${cafe.matchScore}% Match</span>
-                    <button class="save-btn ${isSaved ? "is-saved" : ""}" data-cafe-name="${cafe.name}" aria-label="${isSaved ? "Remove café from saved" : "Save café"}" aria-pressed="${isSaved}">${isSaved ? "♥" : "♡"}</button>
+                    <button class="save-btn ${isSaved ? "is-saved" : ""}" data-cafe-id="${cafe.id}" aria-label="${isSaved ? "Remove café from saved" : "Save café"}" aria-pressed="${isSaved}">${isSaved ? "♥" : "♡"}</button>
                 </div>
                 <div class="cafe-info">
                     <div class="cafe-title">
@@ -478,14 +533,14 @@ function displayCafes(cafeMatches) {
 
     cafeGrid.querySelectorAll(".save-btn").forEach(function(button) {
         button.addEventListener("click", function() {
-            toggleSavedCafe(button.dataset.cafeName, button);
+            toggleSavedCafe(Number(button.dataset.cafeId), button);
         });
     });
 }
 
 let currentPreferences = {};
 
-function handleSearch() {
+async function handleSearch() {
     const userQuery = searchInput.value.trim();
 
     if (userQuery === "") {
@@ -496,17 +551,25 @@ function handleSearch() {
         return;
     }
 
-    currentPreferences = understandQuery(userQuery);
-    const matches = findMatchingCafes(currentPreferences);
-    displayCafes(matches);
-
-    if (matches.length === 0) {
-        searchResult.textContent = "☕ We couldn't find an exact match. Try relaxing one of your preferences.";
-    } else {
-        searchResult.textContent = "☕ Found " + matches.length + " café suggestions for you.";
+    aiSearchBtn.disabled = true;
+    searchResult.textContent = "☕ Finding your best café matches...";
+    try {
+        const response = await fetch(apiBaseUrl + "/search/recommendations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ query: userQuery })
+        });
+        const result = await readApiResponse(response);
+        currentPreferences = result.preferences;
+        displayCafes(result.cafes.map(enrichCafe));
+        searchResult.textContent = result.cafes.length
+            ? "☕ Found " + result.cafes.length + " café suggestions for you."
+            : "☕ We couldn't find an exact match. Try relaxing one of your preferences.";
+    } catch (error) {
+        searchResult.textContent = "☕ " + error.message;
+    } finally {
+        aiSearchBtn.disabled = false;
     }
 }
 
-displayCafes(cafes.map(function(cafe) {
-    return { ...cafe, matchScore: 50, matchedFeatures: [] };
-}));
+loadSavedCafes();

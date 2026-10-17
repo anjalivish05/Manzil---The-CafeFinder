@@ -27,7 +27,9 @@ security = HTTPBearer(auto_error=False)
 
 BACKEND_HOST = os.getenv("BACKEND_HOST", "127.0.0.1")
 BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8001"))
-JWT_SECRET = os.getenv("JWT_SECRET", "change-this-development-secret-2026")
+JWT_SECRET = os.getenv("JWT_SECRET") or secrets.token_urlsafe(32)
+if not os.getenv("JWT_SECRET"):
+    logger.warning("JWT_SECRET is not configured; tokens will reset when the server restarts.")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES = 60
 
@@ -55,8 +57,8 @@ class SignupRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=1)
 
 
 class SearchRequest(BaseModel):
@@ -143,10 +145,10 @@ def initialize_tables() -> None:
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
                 cafe_id INT NOT NULL,
-                cafe_name VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE KEY unique_saved_cafe (user_id, cafe_id),
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (cafe_id) REFERENCES cafes(id) ON DELETE CASCADE
             )
             """
         )
@@ -211,7 +213,8 @@ def parse_query(query: str) -> dict[str, Any]:
     normalized = query.lower().replace("–", "-").replace("—", "-")
     preferences: dict[str, Any] = {
         "purpose": None,
-        "quiet": bool(re.search(r"\bquiet|peaceful|calm\b", normalized)),
+        "location": None,
+        "quiet": bool(re.search(r"\b(?:quiet|peaceful|calm)\b", normalized)),
         "wifi": bool(re.search(r"wi[\s-]?fi", normalized)),
         "charging": bool(re.search(r"charg|power outlet|socket", normalized)),
         "outdoor": bool(re.search(r"outdoor|outside|garden|patio", normalized)),
@@ -229,6 +232,18 @@ def parse_query(query: str) -> dict[str, Any]:
         if re.search(words, normalized):
             preferences["purpose"] = purpose
             break
+    location_match = re.search(
+        r"\b(?:in|near|around|at)\s+([a-z][a-z\s'-]{1,80})",
+        normalized,
+    )
+    if location_match:
+        location = re.split(
+            r"\b(?:for|with|under|below|budget|and)\b|[,.;]",
+            location_match.group(1),
+            maxsplit=1,
+        )[0].strip()
+        if location:
+            preferences["location"] = location
     budget_match = re.search(
         r"(?:under|below|budget(?:\s+of)?|up to|upto)?\s*₹?\s*(\d+)", normalized
     )
@@ -239,6 +254,10 @@ def parse_query(query: str) -> dict[str, Any]:
 
 def cafe_matches(cafe: dict[str, Any], preferences: dict[str, Any]) -> bool:
     if preferences["purpose"] and cafe.get("purpose") != preferences["purpose"]:
+        return False
+    if preferences["location"] and preferences["location"] not in str(
+        cafe.get("location", "")
+    ).lower():
         return False
     for key in ("quiet", "wifi", "charging", "outdoor", "pet_friendly", "ac"):
         if preferences[key] and not cafe.get(key):
@@ -261,6 +280,7 @@ def rank_cafe(cafe: dict[str, Any], preferences: dict[str, Any]) -> dict[str, An
         "outdoor": (10, "outdoor seating"),
         "pet_friendly": (10, "pet friendly"),
         "ac": (5, "AC"),
+        "location": (15, "preferred location"),
     }
     score = 0
     possible = 0
@@ -273,7 +293,11 @@ def rank_cafe(cafe: dict[str, Any], preferences: dict[str, Any]) -> dict[str, An
     for key, (weight, label) in weights.items():
         if preferences[key]:
             possible += weight
-            if cafe.get(key):
+            if key == "location":
+                is_match = preferences[key] in str(cafe.get("location", "")).lower()
+            else:
+                is_match = cafe.get(key)
+            if is_match:
                 score += weight
                 matched.append(label)
     if preferences["cozy"]:
@@ -377,8 +401,10 @@ def recommendations(
 @app.post("/auth/signup")
 def signup(request: SignupRequest):
     name, email = request.name.strip(), request.email.strip().lower()
-    if not name or not email:
-        raise HTTPException(status_code=400, detail="Name and email are required.")
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required.")
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise HTTPException(status_code=422, detail="Enter a valid email address.")
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
     try:
@@ -429,48 +455,27 @@ def login(request: LoginRequest):
 
 
 @app.get("/saved")
-def get_saved_cafes(user: dict[str, Any] = Depends(current_user)):
-    connection = get_db_connection()
-    cursor = connection.cursor(dictionary=True)
-    try:
-        cursor.execute(
-            "SELECT cafe_id, cafe_name, created_at FROM saved_cafes WHERE user_id = %s ORDER BY created_at DESC",
-            (user["id"],),
-        )
-        return cursor.fetchall()
-    finally:
-        cursor.close()
-        connection.close()
+def get_saved_cafes_legacy(user: dict[str, Any] = Depends(current_user)):
+    """Compatibility route for clients using the older /saved URL."""
+    return list_saved_cafes_for_user(user["id"])
 
 
 @app.post("/saved/{cafe_id}")
-def save_cafe(cafe_id: int, cafe_name: str = Query(..., min_length=1), user: dict[str, Any] = Depends(current_user)):
-    connection = get_db_connection()
-    cursor = connection.cursor()
-    try:
-        cursor.execute(
-            "INSERT INTO saved_cafes (user_id, cafe_id, cafe_name) VALUES (%s, %s, %s) "
-            "ON DUPLICATE KEY UPDATE cafe_name = VALUES(cafe_name)",
-            (user["id"], cafe_id, cafe_name),
-        )
-        connection.commit()
-        return {"saved": True, "cafe_id": cafe_id, "cafe_name": cafe_name}
-    finally:
-        cursor.close()
-        connection.close()
+def save_cafe_legacy(
+    cafe_id: int,
+    user: dict[str, Any] = Depends(current_user),
+):
+    """Compatibility route for clients using the older /saved URL."""
+    return save_cafe_for_user(cafe_id, user["id"])
 
 
 @app.delete("/saved/{cafe_id}")
-def unsave_cafe(cafe_id: int, user: dict[str, Any] = Depends(current_user)):
-    connection = get_db_connection()
-    cursor = connection.cursor()
-    try:
-        cursor.execute("DELETE FROM saved_cafes WHERE user_id = %s AND cafe_id = %s", (user["id"], cafe_id))
-        connection.commit()
-        return {"saved": False, "cafe_id": cafe_id}
-    finally:
-        cursor.close()
-        connection.close()
+def unsave_cafe_legacy(
+    cafe_id: int,
+    user: dict[str, Any] = Depends(current_user),
+):
+    """Compatibility route for clients using the older /saved URL."""
+    return remove_saved_cafe_for_user(cafe_id, user["id"])
 
 
 @app.get("/history")
@@ -521,6 +526,96 @@ def save_preferences(request: PreferencesRequest, user: dict[str, Any] = Depends
     finally:
         cursor.close()
         connection.close()
+
+
+def save_cafe_for_user(cafe_id: int, user_id: int) -> dict[str, Any]:
+    if cafe_id <= 0:
+        raise HTTPException(status_code=422, detail="cafe_id must be positive.")
+
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id FROM cafes WHERE id = %s", (cafe_id,))
+        if cursor.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Cafe not found.")
+
+        cursor.execute(
+            "INSERT INTO saved_cafes (user_id, cafe_id) VALUES (%s, %s) "
+            "ON DUPLICATE KEY UPDATE cafe_id = VALUES(cafe_id)",
+            (user_id, cafe_id),
+        )
+        connection.commit()
+        return {"saved": True, "message": "Cafe saved successfully.", "cafe_id": cafe_id}
+    except mysql.connector.Error as error:
+        connection.rollback()
+        logger.exception("Could not save cafe")
+        raise HTTPException(status_code=500, detail="Could not save cafe.") from error
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def list_saved_cafes_for_user(user_id: int) -> dict[str, Any]:
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT c.id, c.name, c.location, c.price, c.quiet, c.wifi, "
+            "c.charging, c.purpose, c.rating, sc.saved_at "
+            "FROM saved_cafes AS sc "
+            "JOIN cafes AS c ON c.id = sc.cafe_id "
+            "WHERE sc.user_id = %s ORDER BY sc.saved_at DESC",
+            (user_id,),
+        )
+        return {"saved_cafes": cursor.fetchall()}
+    except mysql.connector.Error as error:
+        logger.exception("Could not retrieve saved cafes")
+        raise HTTPException(status_code=500, detail="Could not retrieve saved cafes.") from error
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def remove_saved_cafe_for_user(cafe_id: int, user_id: int) -> dict[str, Any]:
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    try:
+        cursor.execute(
+            "DELETE FROM saved_cafes WHERE user_id = %s AND cafe_id = %s",
+            (user_id, cafe_id),
+        )
+        connection.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Saved cafe not found.")
+        return {"saved": False, "message": "Cafe removed from saved cafes.", "cafe_id": cafe_id}
+    except mysql.connector.Error as error:
+        connection.rollback()
+        logger.exception("Could not remove saved cafe")
+        raise HTTPException(status_code=500, detail="Could not remove saved cafe.") from error
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.post("/saved-cafes")
+def save_cafe(
+    cafe_id: int = Query(..., gt=0),
+    user: dict[str, Any] = Depends(current_user),
+):
+    return save_cafe_for_user(cafe_id, user["id"])
+
+
+@app.get("/saved-cafes")
+def get_saved_cafes(user: dict[str, Any] = Depends(current_user)):
+    return list_saved_cafes_for_user(user["id"])
+
+
+@app.delete("/saved-cafes/{cafe_id}")
+def remove_saved_cafe(
+    cafe_id: int,
+    user: dict[str, Any] = Depends(current_user),
+):
+    return remove_saved_cafe_for_user(cafe_id, user["id"])
 
 
 if __name__ == "__main__":
