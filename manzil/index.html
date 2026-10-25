@@ -14,6 +14,43 @@
 </head>
 <body>
 
+    <!-- WELCOME / ONBOARDING -->
+    <section class="welcome-screen" id="welcomeScreen" aria-labelledby="welcomeTitle">
+        <div class="welcome-layout">
+            <div class="welcome-copy">
+                <div class="welcome-brand" aria-label="Manzil, The CafeFinder">
+                    <span class="welcome-brand-mark">M</span>
+                    <span>
+                        <strong>Manzil</strong>
+                        <small>The CafeFinder</small>
+                    </span>
+                </div>
+
+                <div class="welcome-message">
+                    <p class="welcome-eyebrow">YOUR NEXT FAVOURITE PLACE</p>
+                    <h1 id="welcomeTitle">Find cafés<br><em>that feel like you.</em></h1>
+                    <p>Discover the best cafés to study, work, date or simply unwind.</p>
+                </div>
+
+                <div class="welcome-actions">
+                    <div class="welcome-dots" aria-label="Welcome screen, step 1 of 3">
+                        <span class="is-active"></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <button class="welcome-start" id="getStartedButton" type="button">
+                        <span>Get Started</span><span class="welcome-arrow" aria-hidden="true">↗</span>
+                    </button>
+                    <p class="welcome-signin">Already have an account? <button id="welcomeSignInButton" type="button">Sign In</button></p>
+                </div>
+            </div>
+
+            <div class="welcome-photo" role="img" aria-label="A warm café table with coffee and a notebook">
+                <div class="welcome-photo-caption"><span>01</span><span>Make yourself at home</span></div>
+            </div>
+        </div>
+    </section>
+
     <!-- NAVBAR -->
     <header class="navbar">
 
@@ -288,7 +325,35 @@
         <form class="auth-form">
             <label class="signup-only">Name<input name="name" type="text" autocomplete="name"></label>
             <label>Email<input name="email" type="email" autocomplete="email" required></label>
-            <label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" required></label>
+            <label class="password-label">
+    Password
+    <span class="password-wrapper">
+        <input
+            name="password"
+            id="authPassword"
+            type="password"
+            autocomplete="current-password"
+            minlength="8"
+            required
+        >
+        <button
+            type="button"
+            class="toggle-password"
+            id="togglePassword"
+            aria-label="Show password"
+            aria-pressed="false"
+        >👁️</button>
+    </span>
+</label>
+<div class="forgot-password-row">
+    <button
+        type="button"
+        class="forgot-password-link"
+        id="forgotPasswordBtn"
+    >
+        Forgot Password?
+    </button>
+</div>
             <button class="auth-submit" type="submit">Login</button>
         </form>
         <p class="auth-message" role="status" aria-live="polite"></p>

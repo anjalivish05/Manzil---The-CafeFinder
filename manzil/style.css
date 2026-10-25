@@ -32,6 +32,228 @@ body {
     font-family: "Inter", sans-serif;
 }
 
+/* Opening experience */
+.welcome-screen {
+    position: fixed;
+    z-index: 20;
+    inset: 0;
+    min-height: 100svh;
+    overflow: auto;
+    background: #efe1d2;
+    transition: opacity 420ms ease, visibility 420ms ease;
+}
+
+.app-started .welcome-screen {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+body:not(.app-started) > .navbar,
+body:not(.app-started) > main,
+body:not(.app-started) > .footer,
+body:not(.app-started) > .footer-bottom {
+    visibility: hidden;
+}
+
+.welcome-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 1.1fr);
+    width: min(1180px, 90%);
+    min-height: 100svh;
+    margin: auto;
+    padding: 42px 0;
+    gap: clamp(48px, 8vw, 120px);
+    align-items: center;
+}
+
+.welcome-copy {
+    display: flex;
+    min-height: min(760px, calc(100svh - 84px));
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 8px 0;
+}
+
+.welcome-brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.welcome-brand-mark {
+    display: grid;
+    width: 39px;
+    height: 39px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--coffee);
+    color: var(--cream);
+    font-family: "DM Serif Display", serif;
+    font-size: 22px;
+}
+
+.welcome-brand strong,
+.welcome-brand small {
+    display: block;
+}
+
+.welcome-brand strong {
+    color: var(--espresso);
+    font-family: "DM Serif Display", serif;
+    font-size: 25px;
+    font-weight: 400;
+    line-height: 1;
+}
+
+.welcome-brand small {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 8px;
+    letter-spacing: 2.4px;
+    text-transform: uppercase;
+}
+
+.welcome-message {
+    margin: auto 0;
+    padding: 70px 0 46px;
+}
+
+.welcome-eyebrow {
+    margin-bottom: 22px;
+    color: var(--caramel);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+}
+
+.welcome-message h1 {
+    max-width: 560px;
+    color: var(--espresso);
+    font-family: "DM Serif Display", serif;
+    font-size: clamp(3.6rem, 6.3vw, 6.5rem);
+    font-weight: 400;
+    line-height: 0.94;
+    letter-spacing: -1.5px;
+}
+
+.welcome-message h1 em {
+    color: var(--caramel);
+    font-style: italic;
+}
+
+.welcome-message > p {
+    max-width: 360px;
+    margin-top: 28px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.75;
+}
+
+.welcome-actions {
+    max-width: 390px;
+}
+
+.welcome-dots {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.welcome-dots span {
+    display: block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(90, 48, 34, 0.24);
+}
+
+.welcome-dots span.is-active {
+    width: 22px;
+    border-radius: 10px;
+    background: var(--coffee);
+}
+
+.welcome-start {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    border: 0;
+    border-radius: 17px;
+    padding: 17px 17px 17px 22px;
+    background: var(--coffee);
+    color: var(--soft-white);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 13px 24px rgba(59, 33, 24, 0.15);
+    transition: background 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.welcome-start:hover {
+    background: var(--espresso);
+    box-shadow: 0 17px 28px rgba(59, 33, 24, 0.22);
+    transform: translateY(-2px);
+}
+
+.welcome-arrow {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--caramel);
+    font-size: 18px;
+}
+
+.welcome-signin {
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 11px;
+    text-align: center;
+}
+
+.welcome-signin button {
+    border: 0;
+    border-bottom: 1px solid var(--caramel);
+    padding: 0 0 2px;
+    background: transparent;
+    color: var(--coffee);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.welcome-photo {
+    position: relative;
+    min-height: min(720px, calc(100svh - 84px));
+    overflow: hidden;
+    border-radius: 180px 180px 28px 28px;
+    background: linear-gradient(160deg, rgba(59, 33, 24, 0.05), rgba(59, 33, 24, 0.25)), url("images/cozy.jpg") center / cover;
+    box-shadow: 0 24px 50px rgba(59, 33, 24, 0.14);
+}
+
+.welcome-photo::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 65%, rgba(39, 23, 17, 0.55));
+    content: "";
+}
+
+.welcome-photo-caption {
+    position: absolute;
+    z-index: 1;
+    right: 25px;
+    bottom: 24px;
+    left: 25px;
+    display: flex;
+    justify-content: space-between;
+    color: rgba(255, 253, 249, 0.85);
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
 button,
 input {
     font: inherit;
@@ -339,7 +561,7 @@ nav a:hover,
 /* Authentication dialog */
 .auth-modal {
     position: fixed;
-    z-index: 10;
+    z-index: 30;
     inset: 0;
     display: grid;
     padding: 20px;
@@ -885,9 +1107,91 @@ nav a:hover,
     nav { gap: 18px; }
     .vibe-grid { grid-template-columns: repeat(2, 1fr); }
     .map-section { grid-template-columns: 1fr; gap: 32px; }
+    .welcome-layout {
+        gap: 48px;
+    }
+    .welcome-message h1 {
+        font-size: clamp(3.6rem, 9vw, 5.4rem);
+    }
 }
 
 @media (max-width: 620px) {
+    .welcome-layout {
+        display: flex;
+        width: 100%;
+        min-height: 100svh;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 0;
+        padding: 20px 22px 27px;
+    }
+
+    .welcome-photo {
+        order: -1;
+        width: 100%;
+        min-height: 42svh;
+        max-height: 430px;
+        border-radius: 0 0 110px 110px;
+        box-shadow: 0 16px 34px rgba(59, 33, 24, 0.13);
+    }
+
+    .welcome-copy {
+        min-height: 0;
+        flex: 1;
+        padding: 27px 0 0;
+    }
+
+    .welcome-brand {
+        position: absolute;
+        z-index: 2;
+        top: 28px;
+        left: 35px;
+    }
+
+    .welcome-brand strong,
+    .welcome-brand small {
+        color: var(--soft-white);
+    }
+
+    .welcome-brand small {
+        color: rgba(255, 253, 249, 0.72);
+    }
+
+    .welcome-brand-mark {
+        background: rgba(59, 33, 24, 0.72);
+    }
+
+    .welcome-message {
+        margin: 0;
+        padding: 0 0 27px;
+    }
+
+    .welcome-eyebrow {
+        margin-bottom: 14px;
+        font-size: 9px;
+    }
+
+    .welcome-message h1 {
+        font-size: clamp(3.15rem, 15vw, 4.7rem);
+        letter-spacing: -1px;
+    }
+
+    .welcome-message > p {
+        margin-top: 18px;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .welcome-actions {
+        max-width: none;
+        margin-top: auto;
+    }
+
+    .welcome-start {
+        padding-top: 15px;
+        padding-bottom: 15px;
+    }
+
     .navbar {
         width: 88%;
         margin-top: 18px;
@@ -951,3 +1255,84 @@ nav a:hover,
     .footer-links { justify-content: space-between; gap: 24px; }
     .footer-bottom { width: 88%; }
 }
+.password-wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border: 1px solid #e5d5c8;
+    border-radius: 12px;
+    background: #f7efe6;
+    overflow: hidden;
+}
+
+.password-wrapper input {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+}
+
+.toggle-password {
+    flex-shrink: 0;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 17px;
+}
+
+.toggle-password:focus-visible {
+    outline: 2px solid #a86445;
+    outline-offset: -3px;
+}
+/* Forgot Password Link */
+.forgot-password-row {
+display: flex;
+justify-content: flex-end;
+margin-top: -8px;
+margin-bottom: 12px;
+}
+
+.forgot-password-link {
+background: none;
+border: none;
+padding: 4px 0;
+color: #A86445;
+font-size: 13px;
+font-weight: 600;
+cursor: pointer;
+transition: color 0.2s ease;
+}
+
+.forgot-password-link:hover {
+color: #5A3022;
+text-decoration: underline;
+}
+
+.forgot-password-link:focus-visible {
+outline: 2px solid #A86445;
+outline-offset: 3px;
+border-radius: 3px;
+}
+/* Back to Login Button */
+#backToLoginBtn {
+display: inline-block;
+margin-top: 12px;
+padding: 8px 0;
+border: none;
+background: transparent;
+color: #A86445;
+font-family: inherit;
+font-size: 14px;
+font-weight: 600;
+cursor: pointer;
+transition: color 0.2s ease;
+}
+
+#backToLoginBtn:hover {
+color: #5A3022;
+text-decoration: underline;
+}
+

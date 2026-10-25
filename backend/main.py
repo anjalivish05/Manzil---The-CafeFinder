@@ -5,6 +5,8 @@ import logging
 import os
 import re
 import secrets
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -59,6 +61,15 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=1)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class SearchRequest(BaseModel):
@@ -171,6 +182,20 @@ def initialize_tables() -> None:
                 preferences JSON NOT NULL,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                token_hash CHAR(64) NOT NULL UNIQUE,
+                expires_at DATETIME NOT NULL,
+                used_at DATETIME NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_password_reset_user (user_id),
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
             """
@@ -426,6 +451,130 @@ def signup(request: SignupRequest):
     except mysql.connector.Error as error:
         connection.rollback()
         raise HTTPException(status_code=500, detail="Could not create the account.") from error
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def send_password_reset_email(recipient: str, reset_url: str) -> None:
+    """Send a password-reset link using Gmail SMTP configured in backend/.env."""
+    mail_username = os.getenv("MAIL_USERNAME")
+    mail_password = os.getenv("MAIL_PASSWORD")
+    if not mail_username or not mail_password:
+        raise RuntimeError("MAIL_USERNAME and MAIL_PASSWORD are not configured")
+
+    message = EmailMessage()
+    message["Subject"] = "Reset your Manzil password"
+    message["From"] = mail_username
+    message["To"] = recipient
+    message.set_content(
+        "We received a request to reset your Manzil password.\n\n"
+        f"Open this link within 15 minutes to choose a new password:\n{reset_url}\n\n"
+        "If you did not request this, you can ignore this email."
+    )
+   with smtplib.SMTP(
+    os.getenv("MAIL_HOST", "smtp.gmail.com"),
+    587,
+    timeout=30
+) as smtp:
+    smtp.ehlo()
+    smtp.starttls()
+    smtp.ehlo()
+    smtp.login(mail_username, mail_password)
+    smtp.send_message(message)
+
+
+@app.post("/auth/forgot-password")
+def forgot_password(request: ForgotPasswordRequest):
+    email = request.email.strip().lower()
+    generic_response = {
+        "message": "If an account exists for that email, a password-reset link will be sent shortly."
+    }
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id, email FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
+        if not user:
+            return generic_response
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        now = datetime.utcnow()
+        expires_at = now + timedelta(minutes=15)
+        cursor.execute(
+            "DELETE FROM password_reset_tokens WHERE user_id = %s AND used_at IS NULL",
+            (user["id"],),
+        )
+        cursor.execute(
+            "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (%s, %s, %s)",
+            (user["id"], token_hash, expires_at),
+        )
+        connection.commit()
+
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8000/")
+        separator = "&" if "?" in frontend_url else "?"
+        reset_url = f"{frontend_url}{separator}reset_token={raw_token}"
+        try:
+            send_password_reset_email(user["email"], reset_url)
+        except Exception:
+            logger.exception("Could not send password-reset email")
+            # Do not expose account existence or email configuration details to callers.
+            raise HTTPException(
+                status_code=503,
+                detail="Password-reset email service is not available. Please try again later.",
+            )
+        return generic_response
+    except mysql.connector.Error as error:
+        connection.rollback()
+        logger.exception("Password-reset request failed")
+        raise HTTPException(status_code=503, detail="Password reset is temporarily unavailable.") from error
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.post("/auth/reset-password")
+def reset_password(request: ResetPasswordRequest):
+    token_hash = hashlib.sha256(request.token.encode("utf-8")).hexdigest()
+    now = datetime.utcnow()
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT id, user_id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = %s",
+            (token_hash,),
+        )
+        reset_record = cursor.fetchone()
+        if (
+            not reset_record
+            or reset_record["used_at"] is not None
+            or reset_record["expires_at"] <= now
+        ):
+            raise HTTPException(status_code=400, detail="This reset link is invalid or has expired. Request a new one.")
+
+        cursor.execute(
+            "UPDATE users SET password_hash = %s WHERE id = %s",
+            (hash_password(request.new_password), reset_record["user_id"]),
+        )
+        cursor.execute(
+            "UPDATE password_reset_tokens SET used_at = %s WHERE id = %s AND used_at IS NULL",
+            (now, reset_record["id"]),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            raise HTTPException(status_code=400, detail="This reset link has already been used.")
+        # Invalidate any other outstanding reset links for this account.
+        cursor.execute(
+            "UPDATE password_reset_tokens SET used_at = %s WHERE user_id = %s AND used_at IS NULL",
+            (now, reset_record["user_id"]),
+        )
+        connection.commit()
+        return {"message": "Password updated successfully. You can now log in with your new password."}
+    except mysql.connector.Error as error:
+        connection.rollback()
+        logger.exception("Password update failed")
+        raise HTTPException(status_code=503, detail="Password reset is temporarily unavailable.") from error
     finally:
         cursor.close()
         connection.close()

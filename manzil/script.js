@@ -1,3 +1,6 @@
+const welcomeScreen = document.getElementById("welcomeScreen");
+const getStartedButton = document.getElementById("getStartedButton");
+const welcomeSignInButton = document.getElementById("welcomeSignInButton");
 const quickPicks = document.querySelectorAll(".quick-card");
 const moodCards = document.querySelectorAll(".vibe-card");
 const searchInput = document.getElementById("searchInput");
@@ -20,6 +23,24 @@ const authStorageKey = "manzil-auth";
 const apiBaseUrl = window.MANZIL_API_BASE_URL || "http://127.0.0.1:8001";
 let authMode = "login";
 let savedCafeIds = new Set();
+
+function enterCafeFinder() {
+    document.body.classList.add("app-started");
+    if (welcomeScreen) {
+        welcomeScreen.setAttribute("aria-hidden", "true");
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+if (getStartedButton) {
+    getStartedButton.addEventListener("click", enterCafeFinder);
+}
+
+if (welcomeSignInButton) {
+    welcomeSignInButton.addEventListener("click", function() {
+        openAuthModal("login");
+    });
+}
 
 const quickQueries = {
     study: "Find a quiet cafe for studying with Wi-Fi",
@@ -573,3 +594,110 @@ async function handleSearch() {
 }
 
 loadSavedCafes();
+// Show/Hide Password
+const authPassword = document.getElementById("authPassword");
+const togglePassword = document.getElementById("togglePassword");
+
+if (authPassword && togglePassword) {
+    togglePassword.addEventListener("click", () => {
+        const showPassword = authPassword.type === "password";
+
+        authPassword.type = showPassword ? "text" : "password";
+        togglePassword.textContent = showPassword ? "🙈" : "👁️";
+
+        togglePassword.setAttribute(
+            "aria-label",
+            showPassword ? "Hide password" : "Show password"
+        );
+
+        togglePassword.setAttribute("aria-pressed", String(showPassword));
+    });
+}// Forgot Password - Open Reset Screen
+const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
+
+if (forgotPasswordBtn) {
+    forgotPasswordBtn.addEventListener("click", () => {
+        const authPanel = document.querySelector(".auth-panel");
+
+        if (!authPanel) return;
+
+        authPanel.innerHTML = `
+            <button
+                class="auth-close"
+                type="button"
+                aria-label="Close login dialog"
+            >×</button>
+
+            <p class="section-label">YOUR MANZIL</p>
+            <h2>Forgot Password?</h2>
+
+            <p class="auth-subtitle">
+                Enter your registered email address to reset your password.
+            </p>
+
+            <form id="forgotPasswordForm" class="auth-form">
+                <label>
+                    Email
+                    <input
+                        name="email"
+                        type="email"
+                        autocomplete="email"
+                        placeholder="you@example.com"
+                        required
+                    >
+                </label>
+
+                <button class="auth-submit" type="submit">
+                    Send Reset Link
+                </button>
+            </form>
+
+            <p class="auth-message" role="status" aria-live="polite"></p>
+
+            <button id="backToLoginBtn" type="button">
+                ← Back to Login
+            </button>
+        `;
+
+        authPanel.querySelector(".auth-close").addEventListener("click", () => {
+            document.querySelector(".auth-modal").classList.remove("is-open");
+            document.querySelector(".auth-modal").setAttribute("aria-hidden", "true");
+        });
+
+        document.getElementById("backToLoginBtn").addEventListener("click", () => {
+            window.location.reload();
+        });
+
+        document.getElementById("forgotPasswordForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const email = new FormData(form).get("email").trim();
+    const message = authPanel.querySelector(".auth-message");
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    submitButton.disabled = true;
+    message.textContent = "Sending reset link...";
+
+    try {
+        const response = await fetch(apiBaseUrl + "/auth/forgot-password", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ email })
+        });
+
+        const result = await readApiResponse(response);
+
+        message.textContent = result.message ||
+            "If your account exists, a password reset link will be sent to your email.";
+    } catch (error) {
+        message.textContent =
+            error.message || "Unable to send the reset link. Please try again.";
+    } finally {
+        submitButton.disabled = false;
+    }
+});
+    });
+}
